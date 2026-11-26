@@ -29,3 +29,7 @@
 
 - T-7补查：CI45755289376在7e90bdb的Windows-2025/Ubuntu24.04两job均completed/success。只读查询，不将它归为本轮新提交CI。
 - 本轮不新增自动安装包装器；新指南和清单纳入tgz白名单，verify仅补空目录错误的配置指引。新增空目录失败报告/指引及缺Release保全测试。
+
+- 安装工具新增2用例，当前总数31（上一修复基线已含29）。本轮31用例全通过。正式隔离操作仅临时home。
+- 官方DSH包manifest声明仓库directory=apps/cli；已据此修正文档源码链接。
+- 6个现有Agent（Mika等）当前runtime_id均为1f4524d2-60d3-47ad-a88b-bff4d25eab45（GX703HR Codex）；DSH runtime并未绑定到这些Agent。只读，不重配。

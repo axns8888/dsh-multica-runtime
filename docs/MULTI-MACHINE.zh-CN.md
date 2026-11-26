@@ -155,9 +155,11 @@ git status --short
 ```
 
 这是当前已推送且通过 Windows/Ubuntu CI 的修复基线。需要本指南新增文档/报错改进时，
-可在此干净基线由用户审阅后执行 `git apply --check <T-7补丁>`，再 `git apply <T-7补丁>`，
+可将本issue的 `T-7-source.patch` 保存到仓库 `.local/`（忽略目录）或仓库外，
+在此干净基线由用户审阅后执行 git apply --check <补丁路径>，再 git apply <补丁路径>，
 检查 diff 后本地提交（保留用户身份），或取得审阅后已推送的准确新提交再选用。
 不要把尚未推送的本地 SHA 当作新机可 fetch 的远端引用。
+本issue的审查tgz包含新增文档，需使用已应用本轮补丁的配套安装器白名单；不要拿旧安装器安装新审查包。
 
 ## 5. 只构建和审计：不改真实 profile
 
@@ -286,7 +288,7 @@ Agent 名称/ID、当前 runtime ID/设备、目标 runtime ID/设备/daemon_id/
 `README.zh.md`、`docs/user/guide/providers.zh.md`、
 `node_modules/@deepseek-ai/dsh-credentials-local/README.zh.md`、
 `node_modules/@deepseek-ai/dsh-llm-deepseek-api-key/README.zh.md` 和 `dsh-base/cordis.patch.yml`。
-对应上游位置：[启动器](https://github.com/deepseek-ai/deepseek-harness/tree/main/dsh)、
+对应上游位置：[启动器](https://github.com/deepseek-ai/deepseek-harness/tree/main/apps/cli)、
 [凭据服务](https://github.com/deepseek-ai/deepseek-harness/tree/main/packages/credentials/credentials-local)、
 [模型设置](https://github.com/deepseek-ai/deepseek-harness/blob/main/docs/user/guide/providers.zh.md)。
 链接 main 可能变化，应优先用安装版本随附文档。Multica命令核对当前实际0.13.0 `--help`；
