@@ -16,3 +16,5 @@
 - 独立只读审查完成（原文 .local/independent-review.txt），4项正式发现和中间反馈逐条修复于 docs/REVIEW.zh-CN.md；部分报告基于并发修复前快照，未宣称第二次独立全量通过。
 - 真实 profile stdio握手通过；最终27个工具用例全部通过；新增回退失败保留活动候选与重复tar明确拒绝。
 - 第一版干净提交1d87009完整发布构建通过，22单测；后续审查修复需重新固定源码并重建。
+
+- 最终实现两次tgz hash一致：7f3ea2628eaf60dbdce9e0b20af0329fc8e2aaf51a13ca828f734ea1c0fe442a；包manifest没有gitHead，留痕提交不改变tgz内容，build-info将重新生成以匹配最终HEAD。

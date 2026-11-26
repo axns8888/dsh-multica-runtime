@@ -4,7 +4,7 @@
 在指定维护仓库交付可审查的构建、分发、安装、校验与回退工具及实测证据，不推送、不重启 daemon。
 
 ## Next Step
-固定复核修复后的源码并构建、安装最终产物，提交issue交付。
+用户审阅issue交付；无活动任务时启用daemon并另做真实推理闭环验收。
 
 ## Current Phase
 Phase 5
@@ -29,8 +29,8 @@ Phase 5
 - **Status:** complete
 
 ### Phase 5: Delivery
-- [ ] 固定源码、产物哈希、实测边界及 issue 最终交付。
-- **Status:** in_progress
+- [x] 整理源码、产物哈希、实测边界与issue交付材料。
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |
@@ -53,3 +53,6 @@ Phase 5
 
 ## Notes
 不推送/PR/tag/Release，不重启 daemon。许可保持 private/UNLICENSED。
+
+## Final preparation evidence
+固定实现提交785f9fa完成两份发布构建，tgz SHA256一致：7f3ea2628eaf60dbdce9e0b20af0329fc8e2aaf51a13ca828f734ea1c0fe442a。27项工具安全用例通过。最终分发的源码SHA以build-info.json为准，技术交付等待用户验收，不等于真实推理闭环验收。
