@@ -25,6 +25,8 @@
     "UPSTREAM.md",
     "COMPATIBILITY.md",
     "docs/INSTALL.zh-CN.md",
+    "docs/MULTI-MACHINE.zh-CN.md",
+    "docs/DEPLOY-CHECKLIST.zh-CN.md",
     "docs/VALIDATION.zh-CN.md",
     "docs/REVIEW.zh-CN.md"
   ],

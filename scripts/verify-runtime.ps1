@@ -29,7 +29,7 @@ try {
     $phase='modelCatalog'
     $modelsOutput = Invoke-Native $DshCommand @('--profile','multica','--list-models') $TimeoutSeconds
     $catalog = Read-Frames $modelsOutput
-    if ($catalog.Count -ne 1 -or $catalog[0].type -cne 'models' -or $catalog[0].models -isnot [array] -or $catalog[0].models.Count -eq 0) { throw 'Missing or empty model catalog' }
+    if ($catalog.Count -ne 1 -or $catalog[0].type -cne 'models' -or $catalog[0].models -isnot [array] -or $catalog[0].models.Count -eq 0) { throw 'Missing or empty model catalog. Configure provider credentials for the daemon account and the same DSH_HOME before installing; shell-only environment may not reach Desktop. See docs/MULTI-MACHINE.zh-CN.md section 3. Do not bypass catalog verification.' }
     foreach ($model in $catalog[0].models) {
         foreach ($key in @('id','provider','label')) {
             if ($model[$key] -isnot [string] -or [string]::IsNullOrWhiteSpace($model[$key])) { throw "Invalid model field: $key" }

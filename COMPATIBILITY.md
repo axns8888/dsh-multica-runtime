@@ -10,7 +10,7 @@
 | Compile/test DSH family | locked 0.2.1-rc.2; Cordis 4.0.5, loader 1.0.6 |
 | Declared DSH engine | upstream `>=0.2.1-rc.2 <0.3.0`; not a test of every version |
 | Local target | DSH 0.2.2-rc.5, Multica 0.13.0 (35b54a374), Windows x64 |
-| Other OS | CI configured for Windows/Ubuntu; unexecuted CI is not validation |
+| Other OS | Baseline 7e90bdb CI passed Windows/Ubuntu build + fixture checks; Linux/macOS daemon installation and live tasks remain unverified |
 
 Check `docs/VALIDATION.zh-CN.md` for actual results of this build. Unit tests
 cover protocol/env/lifecycle behavior; they do not prove a successful model API

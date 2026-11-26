@@ -7,3 +7,11 @@
 独立复核完成，修复回退恢复状态、重复tar、stdio握手和Release可信来源/job权限。真实profile probe/2模型/stdio握手通过，27项工具用例通过。即将重新固定源码，构建两份校验可重复性，安装最终产物并确认daemon未重启。
 
 2026-11-26 最终复核实现：22单测及27工具用例通过；两次独立输出目录tgz一致（7f3ea262...）。交付前最后仅更新留痕，不修改包内容；将重新生成与最终HEAD一致的build-info，并从真实profile恢复原件后安装最终包。无后台复核遗留，无push/PR/tag/Release，未重启daemon。
+
+## T-7 当前进度
+
+2026-11-26：基线/讨论/原生CLI及官方安装包凭据合同已核对，实施多机文档与最小报错改进。所有真实profile与daemon保持原状。尚未执行本轮构建测试。
+
+T-7修正文档编辑时的PowerShell引号语法错误（解析前拒绝，未发生部分写入）；改用无转义的字面here-string后写入成功。新增Phase6沿用唯一计划。
+
+T-7：16段PowerShell命令语法/Markdown相对链接检查通过；7项文档护栏检查（实际前置、错Node/DSH、缺依赖、空CLI路径、已存在clone保全）通过。固定pnpm准备首次因沙箱npm-cache EPERM失败，按权限流程沙箱外重试成功，只安装仓库.local/t7/pnpm-12.5.1。只读查询CI45755289376，7e90bdb的Windows/Ubuntu两job均success，未触发workflow。

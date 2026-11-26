@@ -18,3 +18,14 @@
 - 第一版干净提交1d87009完整发布构建通过，22单测；后续审查修复需重新固定源码并重建。
 
 - 最终实现两次tgz hash一致：7f3ea2628eaf60dbdce9e0b20af0329fc8e2aaf51a13ca828f734ea1c0fe442a；包manifest没有gitHead，留痕提交不改变tgz内容，build-info将重新生成以匹配最终HEAD。
+
+## T-7 发现（2026-11-26）
+
+- 当前实际 CLI 0.13.0/35b54a374，DSH 0.2.2-rc.5；daemon GX703HR PID22332、launched_by=desktop、running/active=1；未启停。本机 dsh runtime 4b505eed-28ab-4a49-8320-925888445829 online；DESKTOP-V32DROC 仅旧0.12.1的Codex/Claude/Pi offline，无 DSH 登记。
+- 官方已安装 @deepseek-ai/dsh-credentials-local 0.2.2-rc.5 README.zh.md：支持 .credentials.yaml version:1 + refs；优先级存储>启动环境>项目.env>home.env；启动环境是快照。官方 providers.zh.md 支持 设置→模型 保存 DeepSeek API key。没有 dsh login/config set 命令可假定。
+- 官方已安装 DSH launcher README：dsh plugin 初始化 base profile；不使用 --from-default-profile 重置既有 profile。
+- 原 INSTALL 文档仍使用 PATH pnpm、假定已有 axns.1 Release、仅使用任务变量 MULTICA_CLI_PATH；需要修正。旧 tag 55d93eb，不含7e90bdb修复，不是新机来源。
+- 本轮 web 工具对官方 GitHub/raw 查询没有返回正文；凭据合同以本机官方 npm 包中随版本交付的源码/文档为依据，不声称在线页面已核验。
+
+- T-7补查：CI45755289376在7e90bdb的Windows-2025/Ubuntu24.04两job均completed/success。只读查询，不将它归为本轮新提交CI。
+- 本轮不新增自动安装包装器；新指南和清单纳入tgz白名单，verify仅补空目录错误的配置指引。新增空目录失败报告/指引及缺Release保全测试。

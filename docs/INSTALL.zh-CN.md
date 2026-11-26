@@ -1,110 +1,92 @@
 # 自有原生 DSH runtime 安装、发布和回退
 
-所有命令在维护仓库根目录使用 PowerShell 7.4+ 执行。本仓库保留 private /
-UNLICENSED，发布前自行核实授权与仓库可见范围。包名和原生 stdio 协议不变。
+所有脚本在仓库根目录、PowerShell7.4+执行。身份保持 private/UNLICENSED。
+新机从 [Windows多机部署入口](MULTI-MACHINE.zh-CN.md) 开始，转发可用
+[逐机清单](DEPLOY-CHECKLIST.zh-CN.md)。文档中的安装命令由每台机器用户手工执行。
 
-## 本地构建
+## 本地构建（不改profile）
 
-安装 release-toolchain.json 指定的 Node 24.21.0、pnpm 12.5.1。
+先确认已选 Node24.21.0；pnpm由固定准备脚本提供12.5.1，不通过PATH猜测旧版本。
+源码及文档须已提交；不覆盖已有输出目录。完整来源/工具链检查见多机指南。
 
 ```powershell
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm check
-# 所有源码及文档先提交；工作树必须干净。
-pwsh -NoProfile -File scripts/build-release.ps1
+$PnpmEntry = & ./scripts/prepare-pnpm.ps1 -ToolDirectory (Join-Path $PWD '.local/pnpm-12.5.1')
+$Output = Join-Path $PWD ('artifacts/manual-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+./scripts/build-release.ps1 -PnpmEntry $PnpmEntry -OutputDirectory $Output
 ```
 
-默认产物 artifacts/0.2.0-axns.1/ 下包含 .tgz、SHA256SUMS.txt、
-build-info.json。构建不发布 npm/GitHub，不安装 profile，不重启 daemon。
-包采用文件白名单并检查 tar 条目、许可、版本及原生命令退出码；源码 SHA
-指向实际提交，lockfile SHA 和检查结果在 build-info.json 内。
-同版本再次构建请指定新的空输出目录，保留已有证据。
+输出tgz、SHA256SUMS.txt、build-info.json；构建检查冻结依赖、类型/测试/编译、
+归档白名单、身份/许可/版本，记录实际sourceSha/锁文件hash。构建不发布，不安装profile。
 
-## 隔离验证与本地安装
+## 凭据前置：先配置，再安装
+
+首次安装前按 [凭据步骤](MULTI-MACHINE.zh-CN.md#3-先配置模型凭据再进行-profile-安装)
+在daemon使用的Windows用户和DSH_HOME中准备模型凭据。官方DSH0.2.2-rc.5支持
+模型设置界面或本地受管 `.credentials.yaml`（version:1、refs中的DEEPSEEK_API_KEY）。
+存储优先于启动环境；普通shell临时环境不保证已运行Desktop/daemon能读到。
+凭据不进入源码、命令行历史、构建信息或issue。空模型目录仍严格拒绝安装。
+
+## 明确home后安装及回退
+
+`-DshHome`省略时沿用DSH_HOME，再缺省为当前用户`.dsh`。逐机部署建议显式指定，
+确保与daemon一致。以下在无profile使用者及无其他插件包管理操作时执行。
+先前步骤已定义 `$Output`、`$DshHome`、`$DshCommand`：
 
 ```powershell
-$pkg = (Get-ChildItem artifacts/0.2.0-axns.1/*.tgz).FullName
-$sums = (Resolve-Path artifacts/0.2.0-axns.1/SHA256SUMS.txt).Path
-$isolated = Join-Path $PWD '.local/dsh-validation'
-$result = & ./scripts/install-runtime.ps1 -Package $pkg -Checksums $sums -DshHome $isolated
+$Archives = @(Get-ChildItem -LiteralPath $Output -Filter '*.tgz')
+if ($Archives.Count -ne 1) { throw '需要唯一tgz' }
+$pkg = $Archives[0].FullName
+$sums = Join-Path $Output 'SHA256SUMS.txt'
+$result = & ./scripts/install-runtime.ps1 -Package $pkg -Checksums $sums -DshHome $DshHome -DshCommand $DshCommand
 $result | Format-List
-./scripts/verify-runtime.ps1 -DshHome $isolated -ExpectedVersion 0.2.0-axns.1
-# 保存 result.backupId；以下恢复安装前状态（包括原先不存在 profile 的情况）
-./scripts/install-runtime.ps1 -Rollback $result.backupId -DshHome $isolated
+$BackupId = $result.backupId
+./scripts/verify-runtime.ps1 -DshHome $DshHome -DshCommand $DshCommand -ExpectedVersion '0.2.0-axns.1'
+# 仅当需要撤销本次安装时运行：
+./scripts/install-runtime.ps1 -Rollback $BackupId -DshHome $DshHome -DshCommand $DshCommand
 ```
 
-明确传入 -DshHome，或沿用 DSH_HOME；均未设置时使用用户主目录下 .dsh。
-SHA256 不匹配、包身份/内容不符、安装命令失败、probe 异常或目录为空都会失败。
-失败自动恢复原 profile。原 profile（包括 node_modules 及本地设置）完整移动到
-同一 DSH_HOME 下 .axns-runtime/<backupId>/original，包管理不会改写备份。
-新 profile 复制已有配置与依赖清单，重新安装依赖；默认不执行安装生命周期脚本。
-失败候选保留在对应 failed 目录，供本机诊断。不要上传整个备份。
-维护状态目录设为当前用户私有（Windows 用户/SYSTEM ACL，Unix 0700）。
-若外部进程锁定目录导致恢复也失败，将明确报 recovery_required，原件仍留在
-original；关闭占用后手动恢复，不能把该情况视为已恢复。
-回退仅允许当前安装对应的编号；连续安装需从最新一次逐层回退。
-请勿并行运行其他 dsh plugin 操作；脚本互斥锁只覆盖本维护工具。
+隔离验证可将DshHome指向全新`.local`目录；它不会继承真实home的存储凭据或模型设置。
+因此无凭据的新home预期在catalog阶段失败，不能为了隔离通过而复制真实凭据。
+测试用离线路由只证明安装机制，不是用户部署配置。
 
-隔离安装通过后，去掉 -DshHome 即按实际 DSH_HOME 安装真实 multica profile：
+安装器重验hash/包身份，完整移动旧profile至同home的
+`.axns-runtime/<backupId>/original`，包括node_modules及本地设置。
+新profile保留既有配置，安装依赖时禁用生命周期脚本。失败自动恢复安装前状态，
+首次安装失败恢复为profile不存在。候选保留在failed供本机排查，勿上传整个备份。
+状态目录使用用户私有权限（Windows用户/SYSTEM ACL；Unix0700）。
+外部锁造成恢复失败时明确报recovery_required，按下文手工恢复。
+回退仅允许当前安装编号，连续安装需由最新一次逐层回退；home级凭据不随profile回退。
+
+## Release入口（当前不作为新机默认来源）
+
+截至2026-11-26，旧tag `v0.2.0-axns.1`不含pnpm修复，且没有确认可用的Release。
+默认从已验证修复源码 `7e90bdb574bf0da459892413f69454327da7f775` 构建。
+将来用户确认受信任Release及其显式tag后，才使用以下可选入口；不要原样运行占位符：
 
 ```powershell
-$result = & ./scripts/install-runtime.ps1 -Package $pkg -Checksums $sums
-./scripts/verify-runtime.ps1 -ExpectedVersion 0.2.0-axns.1
-# 若需恢复
-./scripts/install-runtime.ps1 -Rollback $result.backupId
+$ReleaseTag = '<已确认存在且可信的vX.Y.Z-axns.N>'
+if ($ReleaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-axns\.[0-9]+$') { throw '先选择真实Release' }
+./scripts/install-runtime.ps1 -ReleaseTag $ReleaseTag -DshHome $DshHome -DshCommand $DshCommand
 ```
 
-## 自有 GitHub Release 安装
+要求gh登录且可读仓库，资产恰好一个tgz及SHA256SUMS。缺Release/资产会失败，
+不静默回退latest/旧tag。hash证明相对于可信校验和的完整性，同源下载不是独立签名。
 
-需 gh 已登录且可读取该仓库。仅支持明确的维护 tag，不跟随 latest。
+## daemon发现、官方切换和发布边界
 
-```powershell
-./scripts/install-runtime.ps1 -ReleaseTag v0.2.0-axns.1
-```
+安装脚本不启停daemon。[多机指南第7节](MULTI-MACHINE.zh-CN.md#7-daemon-发现与逐机-online-验收)
+给出精确CLI路径、同配置profile的status/runtime list，以及仅无daemon时start、
+确有必要且三项任务计数均0时restart的手工命令。普通shell不一定有MULTICA_CLI_PATH，
+应从本机真实Desktop安装/运行上下文确认，不能回退PATH旧CLI。
+probe/非空目录/stdio握手、daemon发现/online、真实推理/取消/恢复/工具回传分别验收。
 
-发布资产要求恰好一个 tgz 和 SHA256SUMS.txt；hash 校验保护完整性，
-请从信任的提交/发布者取得校验和，不把同源下载误作独立签名验证。
+切回官方先按保存的backupId恢复旧profile；原先没有官方bundle时，需取得明确来源、
+适配当前DSH的官方包，核验SHA256并备份后按官方说明安装，不臆造公共npm版本。
 
-## 用户自行推送与发布
-
-本任务不执行 push、PR、tag 或 Release。确认本地提交后由用户运行：
-
-```powershell
-git push -u origin HEAD
-# 审阅后合入目标 main；确保提交和包版本相符，再创建显式 tag。
-git tag v0.2.0-axns.1
-git push origin v0.2.0-axns.1
-```
-
-CI 检查 push/PR，普通 push 不发布。Release workflow 只响应
-v*-axns.* tag 或显式 workflow_dispatch（输入已存在 tag），校验精确 tag
-与 package.json 版本且 tag 已进入 origin/main 后构建并附加 tgz、hash、构建信息。
-构建 job 只读，发布 job 不 checkout/执行仓库代码，写权限只用于生成草稿 Release。
-普通 push 不升级本机。
-Release 先为 draft，用户检查后自行正式发布。
-
-## daemon 启用和切回官方
-
-安装与验收脚本不会重启 daemon。`--probe` 和非空模型目录通过后仍需区分：
-进程协议可用、daemon 已发现 runtime、真实推理、取消、恢复及工具回传。
-模型凭据仅由 DSH 在运行时读取，不写入源码或构建信息。
-
-先查看 daemon 状态。以下使用运行环境提供的精确 CLI，不通过 PATH 找旧版本：
-
-```powershell
-& "$env:MULTICA_CLI_PATH" daemon status --output json
-& "$env:MULTICA_CLI_PATH" daemon --help
-```
-
-仅当 running_task_count、active_task_count、resource_wait_task_count 均为 0
-且没有新任务进入时，用户再按该版本帮助执行 daemon restart。
-当前任务运行期间计数不为 0，必须在任务结束后操作。安装成功本身不代表
-现有 daemon 已重新发现 dsh；重启后检查 skipped_agents/agents，再以有凭据的
-模型运行单独验收任务，核实 stdio、工具、取消、恢复闭环。
-
-切回官方首先用保存的 backupId 恢复原 profile；若原先没有官方版本，需取得
-明确来源、适配当前 DSH 的官方 bundle，核验其 SHA256 并备份后按官方文档安装。
-不臆造 npm 公共版本或自动覆盖官方 profile。维护版再次启用也需明确选择产物。
+下一版候选为0.2.0-axns.2，需同时更新manifest/源码插件版本，固定源码并重新构建审计；
+经用户授权后普通推送main，再新建tag触发草稿Release，审查资产后才正式发布。
+旧tag保持原位。普通push不发布、不升级本机。本任务不执行push/tag/PR或正式Release。
+构建job只读，发布job不执行仓库代码，写权限仅用于创建草稿资产。
 
 ## 外部锁导致 recovery_required 的人工恢复
 

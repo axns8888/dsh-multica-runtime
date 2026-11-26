@@ -6,7 +6,7 @@ function Test-RuntimePackage([string]$Archive) {
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($entry in $entries) {
         if (-not $seen.Add($entry)) { throw "Duplicate archive member: $entry" }
-        if ($entry -match '(^|/)\.\.(/|$)|\\|^/|[\x00-\x1f]' -or $entry -notmatch '^package/(dist/[a-zA-Z0-9_.-]+\.(js|js\.map|d\.ts|d\.ts\.map)|package\.json|cordis\.patch\.yml|README\.md|UPSTREAM\.md|COMPATIBILITY\.md|docs/(INSTALL|VALIDATION|REVIEW)\.zh-CN\.md)$') { throw "Unexpected package entry: $entry" }
+        if ($entry -match '(^|/)\.\.(/|$)|\\|^/|[\x00-\x1f]' -or $entry -notmatch '^package/(dist/[a-zA-Z0-9_.-]+\.(js|js\.map|d\.ts|d\.ts\.map)|package\.json|cordis\.patch\.yml|README\.md|UPSTREAM\.md|COMPATIBILITY\.md|docs/(INSTALL|VALIDATION|REVIEW|MULTI-MACHINE|DEPLOY-CHECKLIST)\.zh-CN\.md)$') { throw "Unexpected package entry: $entry" }
     }
     # No symlinks/hardlinks/devices. The first column is the tar entry type.
     $details = (Invoke-Native 'tar' @('-tvf',$Archive)) -split '\r?\n' | Where-Object { $_ }

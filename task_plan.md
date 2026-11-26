@@ -4,7 +4,7 @@
 在指定维护仓库交付可审查的构建、分发、安装、校验与回退工具及实测证据，不推送、不重启 daemon。
 
 ## Next Step
-用户审阅issue交付；无活动任务时启用daemon并另做真实推理闭环验收。
+执行T-7文档/打包/隔离回归，然后固定本地提交并交付。
 
 ## Current Phase
 Phase 5
@@ -56,3 +56,18 @@ Phase 5
 
 ## Final preparation evidence
 固定实现提交785f9fa完成两份发布构建，tgz SHA256一致：7f3ea2628eaf60dbdce9e0b20af0329fc8e2aaf51a13ca828f734ea1c0fe442a。27项工具安全用例通过。最终分发的源码SHA以build-info.json为准，技术交付等待用户验收，不等于真实推理闭环验收。
+
+# T-7 多机部署（2026-11-26，当前任务）
+
+沿用本文件唯一计划，保留上方 AXNS-6 历史。分支 agent/mika/54a3c223e412，起始 HEAD 7e90bdb574bf0da459892413f69454327da7f775；起始仅未跟踪 .multica/，不修改或暂存它。适用 AGENTS 与项目资源已读；无 _plan/prompts/project.md，无扩展配置。
+
+- [x] 读取 T-7、T-6 描述及相关两条完整评论线程，核对实际 CLI/DSH 与官方安装包凭据文档。
+- [x] 补齐中文多机指南/转发清单，修正旧 Release、pnpm、首次凭据与 daemon 命令。
+- [ ] 必要隔离验证、打包审计与回退，不改真实 profile/凭据，不启停 daemon。
+- [ ] 本地提交、附交付文件与证据到 T-7，in_review。禁止 push/PR/tag/Release。
+
+实施选择：复用现有四个脚本作为分步入口，不增加会修改机器的包装安装器；文档提供逐步失败检查。上下文剩余容量未知，当前只在本窗口实施本短工单，不派生 agent。真实多机 online、推理/取消/恢复/工具回传均留给逐机验收。
+
+### Phase 6: T-7 多机部署指南与验证
+- [ ] 文档、报错与打包白名单；隔离验证、本地提交和issue附件。
+- **Status:** in_progress

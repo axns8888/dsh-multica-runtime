@@ -76,6 +76,17 @@ try {
         $env:AXNS_FAKE_MODE=$mode
         Case "reject $mode" { Must-Fail { & "$PSScriptRoot/verify-runtime.ps1" -DshHome $testHome -DshCommand $fake -ExpectedVersion $version } }
     }
+    Case 'empty catalog explains credential setup and keeps verification failed' {
+        $env:AXNS_FAKE_MODE='empty_models'
+        $reportPath=Join-Path $testRoot 'empty-model-report.json'
+        $message=''
+        try { $null=& "$PSScriptRoot/verify-runtime.ps1" -DshHome $testHome -DshCommand $fake -ExpectedVersion $version -ReportPath $reportPath }
+        catch { $message=$_.Exception.Message }
+        Assert-True ($message -like '*Missing or empty model catalog*daemon account*DSH_HOME*docs/MULTI-MACHINE.zh-CN.md*') 'Missing first-install credential guidance'
+        $report=Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+        Assert-True ($report.status -eq 'failed' -and $report.probe -eq 'passed' -and $report.modelCatalog -eq 'failed' -and $report.stdioHandshake -eq 'not_run') 'Catalog rejection was reported as success or continued to stdio'
+        Assert-True ($report.inference -eq 'not_verified') 'Inference was incorrectly verified'
+    }
     $profile = Join-Path $testHome 'profiles/multica'
     New-Item -ItemType Directory -Path $profile -Force | Out-Null
     'private original config' | Set-Content (Join-Path $profile 'preserve.txt')
@@ -86,6 +97,21 @@ try {
         Must-Fail { & "$PSScriptRoot/install-runtime.ps1" -Package $Package -Checksums $badSums -DshHome $testHome -DshCommand $fake }
         Assert-True ((Get-FileHash (Join-Path $profile 'preserve.txt')).Hash -eq $before) 'Original was changed'
         Assert-True (-not (Test-Path (Join-Path $profile 'candidate.txt'))) 'Installer executed with bad hash'
+    }
+    Case 'missing Release fails without replacing existing profile' {
+        $shadow=Join-Path $testRoot 'no-release-bin'
+        New-Item -ItemType Directory -Path $shadow -Force | Out-Null
+        '[Console]::Error.WriteLine("release not found (offline fixture)"); exit 1' | Set-Content (Join-Path $shadow 'gh.ps1') -Encoding utf8NoBOM
+        $oldPath=$env:PATH
+        $message=''
+        try {
+            $env:PATH=$shadow + [IO.Path]::PathSeparator + $oldPath
+            $null=& "$PSScriptRoot/install-runtime.ps1" -ReleaseTag 'v0.2.0-axns.999999' -DshHome $testHome -DshCommand $fake
+        } catch { $message=$_.Exception.Message }
+        finally { $env:PATH=$oldPath }
+        Assert-True ($message -like '*release not found (offline fixture)*') 'Missing Release did not fail with its actual download error'
+        Assert-True ((Get-FileHash (Join-Path $profile 'preserve.txt')).Hash -eq $before) 'Missing Release changed original profile'
+        Assert-True (-not (Test-Path (Join-Path $profile 'candidate.txt'))) 'Missing Release started an install'
     }
     foreach ($mode in @('install_failure','empty_models','invalid_json')) {
         $env:AXNS_FAKE_MODE=$mode
