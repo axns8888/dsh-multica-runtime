@@ -74,3 +74,28 @@ DESKTOP-V32DROC登记的Codex/Claude/Pi仍offline、CLI0.12.1，未见该机DSH 
 recovery_required按INSTALL文档保留original/failed/retired并人工检查，不覆盖。
 本机无真实安装因此没有本轮真实profile回退编号。
 没有push/PR/tag/Release、远端workflow触发、插件启停、daemon启停或其他机器操作。
+
+## 最新交接决定：用户入口由技能仓库实现
+
+按本issue线程01a21627-1a5a-7956-9767-e6e5331ccbe0的更新，本任务交付定位为runtime基础文档、
+已有helpers及验证证据，供独立任务01a21631-921c-7b98-8ca5-247f1b4170e7实现
+`axns-config-dsh-multica-runtime`技能。本文档/清单可作为底层参考，不等于技能已完成。
+本任务未checkout或写入skill-repo、未复制私有代码到公共仓库、未创建第二份技能。
+
+技能应调用固定来源runtime checkout的以下入口，不维护第二套安装/回退逻辑：
+
+| helper | 输入/输出合同 |
+| --- | --- |
+| scripts/prepare-pnpm.ps1 | -ToolDirectory可选；stdout为唯一pnpm.mjs绝对路径（诊断Write-Host）；安装固定12.5.1，不装Node/DSH |
+| scripts/build-release.ps1 | -PnpmEntry显式入口、-OutputDirectory空目录；Node24.21.0、固定pnpm、干净已提交源码（只豁免.multica未跟踪）、非浅历史含上游祖先；输出archive/sha256/sourceSha/status，附SHA256SUMS/build-info |
+| scripts/install-runtime.ps1 | Local: -Package/-Checksums；Release: -ReleaseTag；Rollback: -Rollback；共享-DshHome/-DshCommand；显式参数集互斥。成功返回status/version/sha256/backupId/verification/daemonRestarted=false，回退返回rolled_back。失败抛错，恢复失败保留证据并报recovery_required |
+| scripts/verify-runtime.ps1 | -DshHome/-DshCommand/-ExpectedVersion/-ReportPath/-TimeoutSeconds；仅probe/catalog/stdio，catalog为空失败；推理/daemonActivation等保持not_verified |
+| 依赖文件 | scripts/common.ps1、package-audit.ps1、pnpm-toolchain.ps1；release-toolchain.json、package.json、pnpm-lock.yaml、完整src与Git祖先；不要只拷贝某个入口脚本 |
+
+当前精确远端可取基线7e90bdb；本轮runtime helper实现/打包源码32ae4e8尚未推送，
+可审阅附件T-7-source.patch并在干净基线上应用、提交，或等待另行授权推送后固定对应远端SHA。
+不能把本地SHA写成其他机器现在可下载的地址。构建使用实际HEAD，分发核对build-info/hash；
+运行时用户数据、凭据、session、profile备份和缓存均不作为技能分发物。
+技能入口自行做本机版本/精确CLI路径/账户home前置检查，复用上述helpers，不降低catalog/版本门槛。
+真实安装、daemon启停、Agent绑定与模型费用仍由技能任务按其授权处理。
+已知skill-repo是PUBLIC，私有runtime源码/产物不得因此自动推送公开。当前仅此线程交接。

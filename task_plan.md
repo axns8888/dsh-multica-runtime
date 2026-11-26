@@ -4,7 +4,7 @@
 在指定维护仓库交付可审查的构建、分发、安装、校验与回退工具及实测证据，不推送、不重启 daemon。
 
 ## Next Step
-向T-7上传最终评论/附件并设in_review；逐机登录、安装、online及真实任务由用户后续执行。
+向T-7指定线程交付runtime基础helpers/文档与证据并设in_review；面向用户入口由独立技能任务01a21631-921c-7b98-8ca5-247f1b4170e7完成。
 
 ## Current Phase
 Phase 5
@@ -71,3 +71,5 @@ Phase 5
 ### Phase 6: T-7 多机部署指南与验证
 - [x] 文档、报错与打包白名单；隔离验证及本地提交，交付文件已备妥。
 - **Status:** complete
+
+最新收口范围：用户选择axns-config-dsh-multica-runtime技能，runtime任务只交接已验证基础helpers，不写skill-repo，不维护第二套安装逻辑；具体接口见docs/MULTI-MACHINE-VALIDATION.zh-CN.md。
