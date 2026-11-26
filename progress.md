@@ -20,3 +20,5 @@ T-7当前验证：ccbde02完整构建/22单测成功、31工具用例成功。�
 沙箱初次build的Vitest spawn EPERM、真实隔离ACL拒绝、夹具缺Release分支被ACL提前阻断，均按权限流程沙箱外重试成功；不把沙箱失败记为产品功能失败。另有临时runner嵌套here-string语法错误，在写入前解析拒绝，改为字符串数组后通过。
 只读核验Release列表为空。末次daemon PID22332未变，running/active=2，不满足重启条件。6个现有Agent仍均绑定GX703HR Codex，DSH runtime online但不自动迁移。
 官方launcher源码链接从猜测的dsh修正为其package.json声明的apps/cli；新增审查包与旧安装器白名单配套说明。需重新构建固定此文档修正的包；不重跑无关真实推理。
+
+T-7最终构建：32ae4e8源SHA，22单测和归档审计通过；tgz SHA256=0acd821920c6d99212d353dfa2d83f38ac74ba2e49b130a5dc6becaf79226121。与受31项工具/真实隔离安装验证的ccbde02包逐条比较，所有非docs条目完全相同。详见docs/MULTI-MACHINE-VALIDATION.zh-CN.md及issue证据附件。后续提交仅交付记录，不改分发内容；无需重跑无关检查。
