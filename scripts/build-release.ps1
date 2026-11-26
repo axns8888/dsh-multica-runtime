@@ -1,15 +1,20 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([string]$OutputDirectory)
+param([string]$OutputDirectory, [string]$PnpmEntry)
 . "$PSScriptRoot/common.ps1"
 . "$PSScriptRoot/package-audit.ps1"
+. "$PSScriptRoot/pnpm-toolchain.ps1"
 $root = Split-Path $PSScriptRoot -Parent
 Push-Location $root
 try {
     $tools = Get-Content release-toolchain.json -Raw | ConvertFrom-Json
-    if ((Invoke-Native 'node' @('--version')).Trim() -cne "v$($tools.node)") { throw 'Node version differs from release-toolchain.json' }
-    if ((Invoke-Native 'pnpm' @('--version')).Trim() -cne $tools.pnpm) { throw 'pnpm version differs from release-toolchain.json' }
-    if ((Invoke-Native 'git' @('status','--porcelain')).Trim()) { throw 'Commit source changes before building a release' }
+    $nodeEntry = [IO.Path]::GetFullPath((Get-Command node -ErrorAction Stop).Source)
+    $nodeVersion = (Invoke-Native $nodeEntry @('--version')).Trim()
+    if ($nodeVersion -cne "v$($tools.node)") { throw "Node version differs from release-toolchain.json: expected v$($tools.node), actual '$nodeVersion' from '$nodeEntry'" }
+    $pnpmTool = Resolve-PnpmToolchain -ExpectedVersion $tools.pnpm -PnpmEntry $PnpmEntry -NodeEntry $nodeEntry
+    $sourceStatus = (Invoke-Native 'git' @('status','--porcelain','--untracked-files=all')).Trim()
+    $unexpectedStatus = @($sourceStatus -split "`n" | Where-Object { $_ -and $_ -notmatch '^\?\? \.multica/' })
+    if ($unexpectedStatus.Count) { throw "Commit source changes before building a release: $($unexpectedStatus -join '; ')" }
     $source = (Invoke-Native 'git' @('rev-parse','HEAD')).Trim()
     $null = Invoke-Native 'git' @('merge-base','--is-ancestor',$tools.upstream,'HEAD')
     $pkg = Get-Content package.json -Raw | ConvertFrom-Json
@@ -28,7 +33,7 @@ try {
         @{args=@('build');name='build'}
     )) {
         Write-Host "Running $($item.name)"
-        Write-Host (Invoke-Native 'pnpm' $item.args 600)
+        Write-Host (Invoke-PinnedPnpm $pnpmTool $item.args 600)
         $checks += @{command=('pnpm ' + ($item.args -join ' '));status='passed'}
     }
     # Purge stale compiler outputs before the final compile. Restrict removal to repo/dist.
@@ -36,15 +41,17 @@ try {
     Assert-Contained $dist $root
     Assert-NoLinks $dist
     if (Test-Path -LiteralPath $dist) { Remove-Item -LiteralPath $dist -Recurse -Force }
-    $null = Invoke-Native 'pnpm' @('build') 600
-    $null = Invoke-Native 'pnpm' @('pack','--pack-destination',$OutputDirectory) 180
+    $null = Invoke-PinnedPnpm $pnpmTool @('build') 600
+    $null = Invoke-PinnedPnpm $pnpmTool @('pack','--pack-destination',$OutputDirectory) 180
     $archives = @(Get-ChildItem -LiteralPath $OutputDirectory -Filter '*.tgz')
     if ($archives.Count -ne 1) { throw 'Expected one packed archive' }
     $archive = $archives[0]
     $null = Test-RuntimePackage $archive.FullName
     $checks += @{command='pnpm pack; tar content/identity audit';status='passed'}
     if ((Get-FileHash pnpm-lock.yaml -Algorithm SHA256).Hash.ToLowerInvariant() -cne $lockHash) { throw 'Lockfile changed during build' }
-    if ((Invoke-Native 'git' @('status','--porcelain')).Trim()) { throw 'Source tree changed during build' }
+    $sourceStatus = (Invoke-Native 'git' @('status','--porcelain','--untracked-files=all')).Trim()
+    $unexpectedStatus = @($sourceStatus -split "`n" | Where-Object { $_ -and $_ -notmatch '^\?\? \.multica/' })
+    if ($unexpectedStatus.Count) { throw "Source tree changed during build: $($unexpectedStatus -join '; ')" }
     $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     $info = [ordered]@{schemaVersion=1;sourceSha=$source;upstreamSha=$tools.upstream;version=$pkg.version;package=$pkg.name;node=$tools.node;pnpm=$tools.pnpm;lockfileSha256=$lockHash;platform=[Runtime.InteropServices.RuntimeInformation]::OSDescription;commands=$checks;packageAudit='passed';archive=$archive.Name;sha256=$hash;inference='not_verified'}
     $infoPath = Join-Path $OutputDirectory 'build-info.json'

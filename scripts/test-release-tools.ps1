@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Package,[Parameter(Mandatory)][string]$Checksums,[string]$ReportPath)
 . "$PSScriptRoot/common.ps1"
+. "$PSScriptRoot/pnpm-toolchain.ps1"
 $Package = (Resolve-Path -LiteralPath $Package).Path
 $Checksums = (Resolve-Path -LiteralPath $Checksums).Path
 $testRoot = Join-Path (Split-Path $PSScriptRoot -Parent) ('.local/tests-' + [guid]::NewGuid().ToString('N'))
@@ -24,6 +25,47 @@ $priorVersion = $env:AXNS_FAKE_VERSION
 $version = (Test-RuntimePackage $Package).version
 $env:AXNS_FAKE_VERSION = $version
 try {
+    Case 'pinned pnpm entry bypasses PATH shadow and is reused for all commands' {
+        $shadowDir = Join-Path $testRoot 'shadow'
+        New-Item -ItemType Directory -Path $shadowDir -Force | Out-Null
+        if ($IsWindows) {
+            $shadowEntry = Join-Path $shadowDir 'pnpm.ps1'
+            Set-Content -LiteralPath $shadowEntry -Value "Write-Output '6.0.0'" -Encoding utf8NoBOM
+        } else {
+            $shadowEntry = Join-Path $shadowDir 'pnpm'
+            Set-Content -LiteralPath $shadowEntry -Value @('#!/usr/bin/env pwsh', "Write-Output '6.0.0'") -Encoding utf8NoBOM
+            [IO.File]::SetUnixFileMode($shadowEntry, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+        }
+        $fakePnpmDir = Join-Path $testRoot 'fake-pnpm/node_modules/pnpm/bin'
+        New-Item -ItemType Directory -Path $fakePnpmDir -Force | Out-Null
+        $fakeEntry = Join-Path $fakePnpmDir 'pnpm.cjs'
+        $fakeSource = @("const fs = require('node:fs');",'const args = process.argv.slice(2);',"if (args[0] === '--version') console.log(process.env.AXNS_FAKE_PNPM_VERSION || '12.5.1');", "else fs.appendFileSync(process.env.AXNS_FAKE_PNPM_LOG, args[0] + '\n');")
+        Set-Content -LiteralPath $fakeEntry -Value $fakeSource -Encoding utf8NoBOM
+        $oldPath=$env:PATH; $oldLog=$env:AXNS_FAKE_PNPM_LOG; $oldVersion=$env:AXNS_FAKE_PNPM_VERSION
+        try {
+            $env:PATH = "$shadowDir$([IO.Path]::PathSeparator)$oldPath"
+            $shadowCommand = Get-Command pnpm -ErrorAction Stop
+            Assert-True ([IO.Path]::GetFullPath($shadowCommand.Source) -eq [IO.Path]::GetFullPath($shadowEntry)) 'The intentionally wrong PATH pnpm was not selected first'
+            $env:AXNS_FAKE_PNPM_LOG = Join-Path $testRoot 'pnpm-calls.txt'
+            $env:AXNS_FAKE_PNPM_VERSION = '12.5.1'
+            $tool=Resolve-PnpmToolchain -ExpectedVersion '12.5.1' -PnpmEntry $fakeEntry
+            foreach($command in @('install','typecheck','test','build','pack')) { $null=Invoke-PinnedPnpm $tool @($command) }
+            $calls=@(Get-Content $env:AXNS_FAKE_PNPM_LOG)
+            Assert-True ($calls -join ',' -eq 'install,typecheck,test,build,pack') 'Not all lifecycle commands used the fixed pnpm entry'
+            Assert-True ($tool.Entry -eq [IO.Path]::GetFullPath($fakeEntry)) 'The selected entry was not the explicit absolute path'
+        } finally { $env:PATH=$oldPath; $env:AXNS_FAKE_PNPM_LOG=$oldLog; $env:AXNS_FAKE_PNPM_VERSION=$oldVersion }
+    }
+    Case 'wrong explicit pnpm version is rejected before project commands' {
+        $fakeEntry=Join-Path $testRoot 'fake-pnpm/node_modules/pnpm/bin/pnpm.cjs'
+        $oldVersion=$env:AXNS_FAKE_PNPM_VERSION; $oldLog=$env:AXNS_FAKE_PNPM_LOG
+        $env:AXNS_FAKE_PNPM_VERSION='9.9.9'
+        $env:AXNS_FAKE_PNPM_LOG=Join-Path $testRoot 'wrong-pnpm-calls.txt'
+        $message=''
+        try { $null=Resolve-PnpmToolchain -ExpectedVersion '12.5.1' -PnpmEntry $fakeEntry } catch { $message=$_.Exception.Message }
+        Assert-True ($message -like "*expected '12.5.1'*actual stdout '9.9.9'*selected entry '$([IO.Path]::GetFullPath($fakeEntry))'*") 'Version error omitted expected/actual/entry diagnostics'
+        Assert-True (-not (Test-Path $env:AXNS_FAKE_PNPM_LOG)) 'A dependency operation ran after version rejection'
+        $env:AXNS_FAKE_PNPM_VERSION=$oldVersion; $env:AXNS_FAKE_PNPM_LOG=$oldLog
+    }
     $testHome = Join-Path $testRoot 'home'
     Case 'valid JSONL probe/catalog' {
         $env:AXNS_FAKE_MODE='success'

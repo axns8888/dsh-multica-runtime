@@ -41,15 +41,11 @@ jobs:
           if ($headSha -cne $tagSha) { throw 'Checkout is not the explicit tag' }
           git merge-base --is-ancestor $tagSha origin/main
           if ($LASTEXITCODE -ne 0) { throw 'Release tag must be reviewed on origin/main first' }
-      - name: Install pinned pnpm
-        shell: pwsh
-        run: |
-          npm install --global pnpm@12.5.1 --ignore-scripts
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and verify
         shell: pwsh
         run: |
-          ./scripts/build-release.ps1
+          $pnpmEntry = & ./scripts/prepare-pnpm.ps1
+          ./scripts/build-release.ps1 -PnpmEntry $pnpmEntry
           $pkg = Get-ChildItem artifacts/*/*.tgz
           ./scripts/test-release-tools.ps1 -Package $pkg.FullName -Checksums (Join-Path $pkg.DirectoryName 'SHA256SUMS.txt')
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

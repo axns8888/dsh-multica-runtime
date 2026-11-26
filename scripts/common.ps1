@@ -6,8 +6,8 @@ function Write-JsonFile($Value, [string]$Path) {
     $Value | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
 }
 
-# Native exit codes are mandatory; stdout/stderr are separate. Bound every child.
-function Invoke-Native([string]$Command, [string[]]$Arguments = @(), [int]$TimeoutSeconds = 180) {
+# Native output streams remain separate; callers always inspect exit codes. Bound every child.
+function Invoke-NativeResult([string]$Command, [string[]]$Arguments = @(), [int]$TimeoutSeconds = 180) {
     $start = New-NativeStartInfo $Command $Arguments
     $child = [Diagnostics.Process]::new()
     $child.StartInfo = $start
@@ -20,11 +20,14 @@ function Invoke-Native([string]$Command, [string[]]$Arguments = @(), [int]$Timeo
             $child.WaitForExit()
             throw "$Command timed out after $TimeoutSeconds seconds"
         }
-        $outputText = $stdout.GetAwaiter().GetResult()
-        $errorText = $stderr.GetAwaiter().GetResult()
-        if ($child.ExitCode -ne 0) { throw "$Command exited $($child.ExitCode): $errorText $outputText" }
-        return $outputText
+        return [pscustomobject]@{ stdout=$stdout.GetAwaiter().GetResult(); stderr=$stderr.GetAwaiter().GetResult(); exitCode=$child.ExitCode }
     } finally { $child.Dispose() }
+}
+
+function Invoke-Native([string]$Command, [string[]]$Arguments = @(), [int]$TimeoutSeconds = 180) {
+    $result = Invoke-NativeResult $Command $Arguments $TimeoutSeconds
+    if ($result.exitCode -ne 0) { throw "$Command exited $($result.exitCode): $($result.stderr) $($result.stdout)" }
+    return $result.stdout
 }
 
 function Get-DshHome([string]$Configured) {
