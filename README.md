@@ -68,3 +68,10 @@ development launcher, but neither belongs in source control.
 
 `DEEPSEEK_API_KEY` is read by DSH's credential provider at process runtime. It
 must not be stored in this repository.
+
+## AXNS 私有维护分发
+
+本次维护版 `0.2.0-axns.1`，保持原生 profile/stdio 协议。
+参阅 [中文安装、发布与回退](docs/INSTALL.zh-CN.md)、
+[来源和更新](UPSTREAM.md)、[兼容边界](COMPATIBILITY.md) 和
+[本次验证记录](docs/VALIDATION.zh-CN.md)。不改变 private/UNLICENSED。

@@ -1,0 +1,90 @@
+name: Release private maintenance bundle
+on:
+  push:
+    tags: ['v*-axns.*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing exact tag, e.g. v0.2.0-axns.1'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.21.0'
+      - name: Validate explicit tag and version
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+-axns\.[0-9]+$') { throw 'Invalid maintenance tag' }
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($env:RELEASE_TAG -cne ('v' + $pkg.version)) { throw 'Tag/version mismatch' }
+          $tagSha = git rev-parse --verify "refs/tags/$env:RELEASE_TAG^{commit}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $headSha = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($headSha -cne $tagSha) { throw 'Checkout is not the explicit tag' }
+          git merge-base --is-ancestor $tagSha origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'Release tag must be reviewed on origin/main first' }
+      - name: Install pinned pnpm
+        shell: pwsh
+        run: |
+          npm install --global pnpm@12.5.1 --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and verify
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+          $pkg = Get-ChildItem artifacts/*/*.tgz
+          ./scripts/test-release-tools.ps1 -Package $pkg.FullName -Checksums (Join-Path $pkg.DirectoryName 'SHA256SUMS.txt')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: runtime-bundle
+          path: |
+            artifacts/*/*.tgz
+            artifacts/*/SHA256SUMS.txt
+            artifacts/*/build-info.json
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+    steps:
+      # No checkout or execution of repository code in the job holding write access.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: runtime-bundle
+          path: release-assets
+      - name: Create draft release with explicit assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+-axns\.[0-9]+$') { throw 'Invalid maintenance tag' }
+          $packages = @(Get-ChildItem release-assets -Recurse -Filter '*.tgz')
+          if ($packages.Count -ne 1) { throw 'Expected one tgz' }
+          $pkg = $packages[0]
+          $assets = @($pkg.FullName, (Join-Path $pkg.DirectoryName 'SHA256SUMS.txt'), (Join-Path $pkg.DirectoryName 'build-info.json'))
+          gh release create $env:RELEASE_TAG --verify-tag --draft --title $env:RELEASE_TAG --notes 'Private AXNS native stdio maintenance bundle. Validate provenance and compatibility before installing.' @assets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

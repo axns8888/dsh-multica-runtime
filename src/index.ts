@@ -36,7 +36,7 @@ import { settleCancelled as settleCancelledAgent, waitForQuiescence, type Subage
 export const name = 'multica-dsh-runtime'
 export const inject = ['cmdlineArgs', 'agents', 'agentDefaultModel', 'sessions', 'llm']
 
-const PLUGIN_VERSION = '0.2.0-private.1'
+const PLUGIN_VERSION = '0.2.0-axns.1'
 
 interface ActiveRun {
   command: ExecuteCommand
