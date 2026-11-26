@@ -105,3 +105,28 @@ Release 先为 draft，用户检查后自行正式发布。
 切回官方首先用保存的 backupId 恢复原 profile；若原先没有官方版本，需取得
 明确来源、适配当前 DSH 的官方 bundle，核验其 SHA256 并备份后按官方文档安装。
 不臆造 npm 公共版本或自动覆盖官方 profile。维护版再次启用也需明确选择产物。
+
+## 外部锁导致 recovery_required 的人工恢复
+
+此状态不表示自动恢复成功。先关闭使用该 profile 的 DSH/插件进程，保留 original
+和 retired/failed 两份目录，并确认当前 target 内容。不要终止仍承载任务的 daemon。
+以下仅在目标 profile 不存在、original 是所需旧版本且没有活动用户时执行：
+
+```powershell
+# 将编号替换为出错信息中的 transaction；仅接受 32 位十六进制编号。
+$id = '<transaction-id>'
+if ($id -notmatch '^[a-f0-9]{32}$') { throw 'Invalid transaction id' }
+$base = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $HOME '.dsh' }
+$profile = Join-Path $base 'profiles/multica'
+$original = Join-Path $base ".axns-runtime/$id/original"
+if (Test-Path -LiteralPath $profile) { throw '先检查现有 profile，不能覆盖' }
+[IO.Directory]::Move($original, $profile)
+```
+
+若旧版已恢复到 target 但仅 receipt 写入失败，检查内容后保留证据，勿再次移动目录。
+若希望恢复本次安装候选，出错信息中的 retired 路径仍完整保留；同样仅能在 target
+不存在时原子移动。人工恢复后记录选择的版本并重新运行 verify-runtime.ps1。
+
+stdioHandshake 只启动 --stdio、检查 ready 帧与能力、关闭 stdin 并检查退出；
+上游在 execute 前 EOF 明确返回 1 并输出 stdin closed before execute，
+脚本只在该预期诊断下接受退出 1。不会发送 execute、调用模型或把握手当成推理验收。

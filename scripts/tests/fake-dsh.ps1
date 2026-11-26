@@ -11,6 +11,15 @@ if ($env:AXNS_FAKE_MODE -eq 'nonzero') { exit 19 }
 if ($env:AXNS_FAKE_MODE -eq 'invalid_json') { 'not json'; exit 0 }
 if ($env:AXNS_FAKE_MODE -eq 'no_output') { exit 0 }
 if ($env:AXNS_FAKE_MODE -eq 'protocol_error') { '{"v":1,"type":"protocol_error","code":"bad"}'; exit 0 }
+if ($CallArgs -contains '--stdio') {
+    if ($env:AXNS_FAKE_MODE -eq 'stdio_empty') { exit 0 }
+    if ($env:AXNS_FAKE_MODE -eq 'stdio_invalid') { '{"v":1,"type":"ready"}'; exit 0 }
+    @{v=1;type='ready';runtime='dsh';plugin_version=$env:AXNS_FAKE_VERSION;capabilities=@{resume=$true;cancel=$true;models=$true;thinking=$true;usage=$true;tools=$true;mcp=@('stdio','streamable-http')}} | ConvertTo-Json -Depth 6 -Compress
+    $null=[Console]::In.ReadToEnd()
+    if ($env:AXNS_FAKE_MODE -eq 'stdio_nonzero') { exit 19 }
+    [Console]::Error.WriteLine('stdin closed before execute')
+    exit 1
+}
 if ($CallArgs -contains '--probe') {
     $v = if ($env:AXNS_FAKE_MODE -eq 'wrong_version') {'0.0.0'} else {$env:AXNS_FAKE_VERSION}
     @{v=1;type='probe';runtime='dsh';protocol_version=1;plugin_version=$v} | ConvertTo-Json -Compress

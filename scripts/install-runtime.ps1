@@ -43,11 +43,23 @@ try {
         if ($marker.id -cne $Rollback) { throw 'A newer install is active; roll it back first' }
         $retired = Join-Path $transaction 'retired'
         Assert-Contained $retired $transaction
+        $restored = $false
         Move-ProfileDirectory $profilePath $retired
         try {
             if ($receipt.originalExisted) { Move-ProfileDirectory (Join-Path $transaction 'original') $profilePath }
-        } catch { Move-ProfileDirectory $retired $profilePath; throw }
-        $receipt.status = 'rolled_back'; Write-JsonFile $receipt (Join-Path $transaction 'receipt.json')
+            $restored = $true
+            $receipt.status = 'rolled_back'; Write-JsonFile $receipt (Join-Path $transaction 'receipt.json')
+        } catch {
+            $rollbackError = $_
+            if (-not $restored) {
+                $candidateRestored = $false
+                try { Move-ProfileDirectory $retired $profilePath; $candidateRestored = $true } catch { }
+                if ($candidateRestored) { throw $rollbackError }
+            }
+            $receipt.status='recovery_required'
+            try { Write-JsonFile $receipt (Join-Path $transaction 'receipt.json') } catch { }
+            throw "Rollback requires manual recovery. Close profile users; see docs/INSTALL.zh-CN.md recovery commands. Original: $(Join-Path $transaction 'original'); candidate: $retired; target: $profilePath; transaction: $Rollback"
+        }
         [pscustomobject]@{status='rolled_back'; backupId=$Rollback; daemonRestarted=$false}
         return
     }

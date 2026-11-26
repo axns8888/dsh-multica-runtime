@@ -24,7 +24,9 @@
     "README.md",
     "UPSTREAM.md",
     "COMPATIBILITY.md",
-    "docs/INSTALL.zh-CN.md"
+    "docs/INSTALL.zh-CN.md",
+    "docs/VALIDATION.zh-CN.md",
+    "docs/REVIEW.zh-CN.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -4,10 +4,10 @@
 在指定维护仓库交付可审查的构建、分发、安装、校验与回退工具及实测证据，不推送、不重启 daemon。
 
 ## Next Step
-收集独立复核结论并固定干净源码提交，构建最终分发产物。
+固定复核修复后的源码并构建、安装最终产物，提交issue交付。
 
 ## Current Phase
-Phase 4
+Phase 5
 
 ## Phases
 
@@ -25,12 +25,12 @@ Phase 4
 - **Status:** complete
 
 ### Phase 4: Testing & Verification
-- [ ] 构建、隔离安装/失败/回退、真实 profile、独立复核。
-- **Status:** in_progress
+- [x] 构建、隔离安装/失败/回退、真实 profile、独立复核。
+- **Status:** complete
 
 ### Phase 5: Delivery
 - [ ] 固定源码、产物哈希、实测边界及 issue 最终交付。
-- **Status:** pending
+- **Status:** in_progress
 
 ## Decisions Made
 | Decision | Rationale |

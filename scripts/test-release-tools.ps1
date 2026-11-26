@@ -30,7 +30,7 @@ try {
         $r=& "$PSScriptRoot/verify-runtime.ps1" -DshHome $testHome -DshCommand $fake -ExpectedVersion $version
         Assert-True ($r.status -eq 'passed' -and $r.inference -eq 'not_verified') 'Bad verification result'
     }
-    foreach ($mode in @('nonzero','invalid_json','no_output','protocol_error','wrong_version','duplicate_probe','empty_models','invalid_models')) {
+    foreach ($mode in @('nonzero','invalid_json','no_output','protocol_error','wrong_version','duplicate_probe','empty_models','invalid_models','stdio_empty','stdio_invalid','stdio_nonzero')) {
         $env:AXNS_FAKE_MODE=$mode
         Case "reject $mode" { Must-Fail { & "$PSScriptRoot/verify-runtime.ps1" -DshHome $testHome -DshCommand $fake -ExpectedVersion $version } }
     }
@@ -62,6 +62,18 @@ try {
         $null=& "$PSScriptRoot/install-runtime.ps1" -Rollback $a.backupId -DshHome $testHome
         Assert-True ((Get-FileHash (Join-Path $profile 'preserve.txt')).Hash -eq $before) 'Rollback lost configuration'
         Assert-True (-not (Test-Path (Join-Path $profile '.axns-install.json'))) 'Original not restored exactly'
+    }
+    Case 'failed rollback restores active candidate' {
+        $r=& "$PSScriptRoot/install-runtime.ps1" -Package $Package -Checksums $Checksums -DshHome $testHome -DshCommand $fake
+        $tx=Join-Path $testHome ".axns-runtime/$($r.backupId)"
+        $hiddenOriginal=Join-Path $tx 'original-held-for-test'
+        Move-ProfileDirectory (Join-Path $tx 'original') $hiddenOriginal
+        Must-Fail { & "$PSScriptRoot/install-runtime.ps1" -Rollback $r.backupId -DshHome $testHome }
+        Assert-True (Test-Path (Join-Path $profile '.axns-install.json')) 'Candidate was lost after failed rollback'
+        $receipt=Get-Content (Join-Path $tx 'receipt.json') -Raw | ConvertFrom-Json
+        Assert-True ($receipt.status -eq 'installed') 'Restored active installation lost its receipt state'
+        Move-ProfileDirectory $hiddenOriginal (Join-Path $tx 'original')
+        $null=& "$PSScriptRoot/install-runtime.ps1" -Rollback $r.backupId -DshHome $testHome
     }
     Case 'rollback of first install restores absence' {
         $emptyHome = Join-Path $testRoot 'empty-home'
