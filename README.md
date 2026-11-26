@@ -76,3 +76,7 @@ must not be stored in this repository.
 参阅 [中文安装、发布与回退](docs/INSTALL.zh-CN.md)、
 [来源和更新](UPSTREAM.md)、[兼容边界](COMPATIBILITY.md) 和
 [本次验证记录](docs/VALIDATION.zh-CN.md)。不改变 private/UNLICENSED。
+
+## 当前有效模型同步维护补丁
+
+见 [当前来源选择、监听与恢复](docs/MODEL-SYNC.zh-CN.md)。仅按当前有效源的原 provider/model ID 同步；维护工作区构建由包 SHA256 与源码差异标识，probe 的版本号不能单独证明已安装本补丁。监听随 native runtime 进程退出，无 runtime 进程时没有后台监听；Multica daemon/server/UI 刷新尚无已验证的受支持接入合同。

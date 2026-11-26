@@ -28,12 +28,13 @@
     "docs/MULTI-MACHINE.zh-CN.md",
     "docs/DEPLOY-CHECKLIST.zh-CN.md",
     "docs/VALIDATION.zh-CN.md",
-    "docs/REVIEW.zh-CN.md"
+    "docs/REVIEW.zh-CN.md",
+    "docs/MODEL-SYNC.zh-CN.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --exclude \"**/.local/**\"",
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "engines": {

@@ -30,6 +30,8 @@ import {
   type OutboundFrame,
   type RuntimeModelFrame,
 } from './protocol.js'
+import { createDshModelSync } from './model-sync-dsh.js'
+import type { ModelSync } from './model-sync.js'
 import { installMulticaTerminalEnvironment } from './environment.js'
 import { settleCancelled as settleCancelledAgent, waitForQuiescence, type SubagentLifecycle } from './lifecycle.js'
 
@@ -73,11 +75,16 @@ function protocolError(code: string, message: string): void {
   writeFrame({ v: PROTOCOL_VERSION, type: 'protocol_error', code, message })
 }
 
-function parseMode(args: readonly string[]): 'stdio' | 'probe' | 'list-models' {
+function parseMode(args: readonly string[]): 'stdio' | 'probe' | 'list-models' | 'sync-status' | 'sync-enable' | 'sync-disable' | 'sync-reconcile' | `sync-rollback:${string}` {
   if (args.length !== 1) {
     throw new Error('expected exactly one mode: --stdio, --probe, or --list-models')
   }
+  if (/^--sync-rollback=[a-f0-9-]{36}$/.test(args[0]!)) return `sync-rollback:${args[0]!.slice(16)}`
   switch (args[0]) {
+    case '--sync-status': return 'sync-status'
+    case '--sync-enable': return 'sync-enable'
+    case '--sync-disable': return 'sync-disable'
+    case '--sync-reconcile': return 'sync-reconcile'
     case '--stdio': return 'stdio'
     case '--probe': return 'probe'
     case '--list-models': return 'list-models'
@@ -100,7 +107,7 @@ async function listModels(ctx: Context): Promise<RuntimeModelFrame[]> {
     try {
       models = await llm.listModels(provider.id)
     } catch (error: unknown) {
-      writeDiagnostic(`model discovery failed for ${provider.id}: ${errorMessage(error)}`)
+      writeDiagnostic(`model discovery failed for ${provider.id} (details suppressed)`)
       continue
     }
     for (const model of models) {
@@ -108,7 +115,7 @@ async function listModels(ctx: Context): Promise<RuntimeModelFrame[]> {
       try {
         resolved = await llm.resolveModelInfo(provider.id, model.id)
       } catch (error: unknown) {
-        writeDiagnostic(`model capability lookup failed for ${provider.id}/${model.id}: ${errorMessage(error)}`)
+        writeDiagnostic(`model capability lookup failed for ${provider.id}/${model.id} (details suppressed)`)
       }
       const reasoning = resolved?.reasoning
       result.push({
@@ -442,7 +449,9 @@ async function execute(ctx: Context, active: ActiveRun): Promise<number> {
   }
 }
 
-async function stdio(ctx: Context): Promise<number> {
+async function stdio(ctx: Context, sync?: ModelSync): Promise<number> {
+  await sync?.pin()
+  const disabledProviders = await sync?.disabledProviders() ?? new Set<string>()
   const forwarding = await installMulticaTerminalEnvironment(ctx)
   if (forwarding !== undefined && !forwarding.forwarded) {
     // Fail loudly at boot instead of twenty seconds later, as an opaque
@@ -468,10 +477,12 @@ async function stdio(ctx: Context): Promise<number> {
     try {
       const command = parseInboundCommand(line)
       if (command.type === 'execute') {
+        if (command.model && disabledProviders.has(command.model.provider)) throw new Error('selected provider is explicitly disabled')
         if (activeRef.current !== undefined || resolveExecute === undefined) {
           protocolError('DUPLICATE_EXECUTE', 'this DSH process accepts exactly one execute command')
           return
         }
+        // One native process handles one execute. A later sync only prepares the next process's revision.
         const active: ActiveRun = {
           command,
           firstSeq: Number.MAX_SAFE_INTEGER,
@@ -536,6 +547,12 @@ async function stdio(ctx: Context): Promise<number> {
   }
   const active = activeRef.current
   if (active === undefined) return 1
+  const defaultProvider = ctx.get('agentDefaultModel')?.currentSelection().provider
+  if (active.command.model === undefined && defaultProvider !== undefined && disabledProviders.has(defaultProvider)) {
+    writeDiagnostic('default provider is explicitly disabled')
+    input.close()
+    return 1
+  }
   const code = await execute(ctx, active)
   activeRef.finished = true
   input.close()
@@ -550,26 +567,46 @@ async function run(ctx: Context): Promise<void> {
     throw new Error('the DSH launcher did not provide cmdlineArgs/appExit')
   }
   let code = 1
+  let sync: ModelSync | undefined
   try {
     const mode = parseMode(cmdlineArgs.get())
-    if (mode === 'probe') {
-      writeFrame({
-        v: PROTOCOL_VERSION,
-        type: 'probe',
-        runtime: 'dsh',
-        plugin_version: PLUGIN_VERSION,
-        protocol_version: PROTOCOL_VERSION,
-      })
-      code = 0
-    } else if (mode === 'list-models') {
-      writeFrame({ v: PROTOCOL_VERSION, type: 'models', models: await listModels(ctx) })
-      code = 0
+    sync = await createDshModelSync(ctx)
+    if (mode.startsWith('sync-')) {
+      if (sync === undefined) throw new Error('model sync requires a DSH profile context')
+      if (mode === 'sync-enable') await sync.control(true)
+      if (mode === 'sync-disable') await sync.control(false)
+      const status = mode.startsWith('sync-rollback:')
+        ? await sync.rollback(mode.slice('sync-rollback:'.length))
+        : mode === 'sync-reconcile' || mode === 'sync-enable' ? await sync.reconcile() : await sync.loadStatus()
+      process.stdout.write(`${JSON.stringify(status)}\n`)
+      code = status.code === undefined ? 0 : 1
     } else {
-      code = await stdio(ctx)
+      if (sync !== undefined) {
+        await sync.start()
+        // Invalid new source keeps the last known working LLM snapshot. An explicit disabled route is never selected.
+      }
+      if (mode === 'probe') {
+        writeFrame({
+          v: PROTOCOL_VERSION,
+          type: 'probe',
+          runtime: 'dsh',
+          plugin_version: PLUGIN_VERSION,
+          protocol_version: PROTOCOL_VERSION,
+        })
+        code = 0
+      } else if (mode === 'list-models') {
+        writeFrame({ v: PROTOCOL_VERSION, type: 'models', models: await listModels(ctx) })
+        code = 0
+      } else {
+        code = await stdio(ctx, sync)
+      }
     }
   } catch (error: unknown) {
-    writeDiagnostic(errorMessage(error))
-    protocolError('STARTUP_FAILED', errorMessage(error))
+    // Source parse/credential errors can contain private configuration. Keep startup diagnostics fixed.
+    writeDiagnostic('runtime startup failed; inspect safe sync status')
+    protocolError('STARTUP_FAILED', 'runtime startup failed')
+  } finally {
+    await sync?.dispose()
   }
   appExit(code)
 }
