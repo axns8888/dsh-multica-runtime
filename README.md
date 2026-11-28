@@ -75,7 +75,7 @@ must not be stored in this repository.
 新电脑先按 [Windows 多机部署](docs/MULTI-MACHINE.zh-CN.md) 及 [逐机清单](docs/DEPLOY-CHECKLIST.zh-CN.md) 操作。当前默认从已验证修复源码构建，不假定旧 tag 存在可用 Release。
 参阅 [中文安装、发布与回退](docs/INSTALL.zh-CN.md)、
 [来源和更新](UPSTREAM.md)、[兼容边界](COMPATIBILITY.md) 和
-[本次验证记录](docs/VALIDATION.zh-CN.md)。不改变 private/UNLICENSED。
+[本次验证记录](docs/VALIDATION.zh-CN.md)。按仓库根目录 `LICENSE` 的 MIT 授权分发。
 
 ## 当前有效模型同步维护补丁
 

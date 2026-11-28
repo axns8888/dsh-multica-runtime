@@ -29,7 +29,8 @@
     "docs/DEPLOY-CHECKLIST.zh-CN.md",
     "docs/VALIDATION.zh-CN.md",
     "docs/REVIEW.zh-CN.md",
-    "docs/MODEL-SYNC.zh-CN.md"
+    "docs/MODEL-SYNC.zh-CN.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -107,6 +108,6 @@
     "typescript": "6.0.3",
     "vitest": "4.1.8"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "packageManager": "pnpm@12.5.1"
 }

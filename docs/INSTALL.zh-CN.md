@@ -1,6 +1,6 @@
 # 自有原生 DSH runtime 安装、发布和回退
 
-所有脚本在仓库根目录、PowerShell7.4+执行。身份保持 private/UNLICENSED。
+所有脚本在仓库根目录、PowerShell7.4+执行。包保持 private；许可为根目录 `LICENSE` 所载 MIT。
 新机从 [Windows多机部署入口](MULTI-MACHINE.zh-CN.md) 开始，转发可用
 [逐机清单](DEPLOY-CHECKLIST.zh-CN.md)。文档中的安装命令由每台机器用户手工执行。
 

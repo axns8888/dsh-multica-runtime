@@ -2,7 +2,7 @@
 
 | Surface | Contract / evidence boundary |
 | --- | --- |
-| Identity | `@multica-ai/dsh-runtime`, profile `multica`, private/UNLICENSED |
+| Identity | `@multica-ai/dsh-runtime`, profile `multica`, private package under the repository MIT License |
 | Protocol | JSONL v1 over stdio; `--probe`, `--list-models`, `--stdio` |
 | Node release build | exactly 24.21.0; runtime engines inherited from upstream |
 | pnpm release build | exactly 12.5.1, frozen pnpm-lock.yaml |

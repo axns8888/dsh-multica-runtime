@@ -1,8 +1,9 @@
 # Upstream and provenance
 
 This is a private maintenance build; package name `@multica-ai/dsh-runtime`,
-`private: true`, `UNLICENSED`, original copyright and full Git history remain.
-No license grant is added. Redistribution requires the original rights holder's permission.
+`private: true`, original copyright and full Git history remain. The repository
+is distributed under the MIT License in `LICENSE`; its copyright notice is
+preserved unchanged.
 
 - Official upstream: `https://github.com/multica-ai/dsh-multica-runtime`
 - User remote: `https://github.com/axns8888/dsh-multica-runtime`
