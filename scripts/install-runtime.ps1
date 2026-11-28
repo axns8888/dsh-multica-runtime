@@ -3,7 +3,7 @@
 param(
     [Parameter(Mandatory,ParameterSetName='Local')][string]$Package,
     [Parameter(Mandatory,ParameterSetName='Local')][string]$Checksums,
-    [Parameter(Mandatory,ParameterSetName='Release')][ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+-axns\.[0-9]+$')][string]$ReleaseTag,
+    [Parameter(Mandatory,ParameterSetName='Release')][ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+(?:-axns\.[0-9]+)?$')][string]$ReleaseTag,
     [Parameter(Mandatory,ParameterSetName='Rollback')][ValidatePattern('^[a-f0-9]{32}$')][string]$Rollback,
     [string]$DshHome, [string]$DshCommand='dsh'
 )

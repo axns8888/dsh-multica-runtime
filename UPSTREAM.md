@@ -11,8 +11,7 @@ No license grant is added. Redistribution requires the original rights holder's 
 - Verified on 2026-11-26 using authenticated Git ls-remote of BOTH repositories;
   both main branches named the baseline above. This is a fresh observation, not
   a claim based on a previous public snapshot. Checkout is not shallow.
-- Maintenance version: `0.2.0-axns.1`; prerelease label distinguishes the build,
-  not a promise of semver ordering relative to upstream's private label.
+- Maintenance version: `0.2.0`; the package remains a private maintenance build.
 - Local branch: `agent/mika/54a3c223e412` (not the target of upstream changes).
 
 User patches: version/repository metadata; pinned release toolchain; package
@@ -25,7 +24,7 @@ actual DSH 0.2.2-rc.5 is tested separately and must not be inferred from compila
 For an upstream update, fetch upstream, inspect changes against this baseline,
 retain history and license, update release-toolchain.json/upstream only after
 review, resolve patches, run full tests and isolated install/rollback, increment
-maintenance prerelease and collect new build information. Never merge a new
+maintenance version and collect new build information. Never merge a new
 upstream or widen the engines range merely to bypass compatibility failure.
 
 Return to official distribution when the required fixes are included and the

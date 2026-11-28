@@ -40,7 +40,7 @@ $sums = Join-Path $Output 'SHA256SUMS.txt'
 $result = & ./scripts/install-runtime.ps1 -Package $pkg -Checksums $sums -DshHome $DshHome -DshCommand $DshCommand
 $result | Format-List
 $BackupId = $result.backupId
-./scripts/verify-runtime.ps1 -DshHome $DshHome -DshCommand $DshCommand -ExpectedVersion '0.2.0-axns.1'
+./scripts/verify-runtime.ps1 -DshHome $DshHome -DshCommand $DshCommand -ExpectedVersion '0.2.0'
 # 仅当需要撤销本次安装时运行：
 ./scripts/install-runtime.ps1 -Rollback $BackupId -DshHome $DshHome -DshCommand $DshCommand
 ```
@@ -64,8 +64,8 @@ $BackupId = $result.backupId
 将来用户确认受信任Release及其显式tag后，才使用以下可选入口；不要原样运行占位符：
 
 ```powershell
-$ReleaseTag = '<已确认存在且可信的vX.Y.Z-axns.N>'
-if ($ReleaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-axns\.[0-9]+$') { throw '先选择真实Release' }
+$ReleaseTag = '<已确认存在且可信的vX.Y.Z>'
+if ($ReleaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') { throw '先选择真实正式版Release' }
 ./scripts/install-runtime.ps1 -ReleaseTag $ReleaseTag -DshHome $DshHome -DshCommand $DshCommand
 ```
 
@@ -83,10 +83,8 @@ probe/非空目录/stdio握手、daemon发现/online、真实推理/取消/恢�
 切回官方先按保存的backupId恢复旧profile；原先没有官方bundle时，需取得明确来源、
 适配当前DSH的官方包，核验SHA256并备份后按官方说明安装，不臆造公共npm版本。
 
-下一版候选为0.2.0-axns.2，需同时更新manifest/源码插件版本，固定源码并重新构建审计；
-经用户授权后普通推送main，再新建tag触发草稿Release，审查资产后才正式发布。
-旧tag保持原位。普通push不发布、不升级本机。本任务不执行push/tag/PR或正式Release。
-构建job只读，发布job不执行仓库代码，写权限仅用于创建草稿资产。
+正式版采用 `v0.2.0` 标签，发布前固定源码并重新构建、审计；核验发行资产后再供新机使用。
+旧 tag 保持原位。普通 push 不发布、不升级本机。
 
 ## 外部锁导致 recovery_required 的人工恢复
 

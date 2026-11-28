@@ -147,19 +147,14 @@ New-Item -ItemType Directory -Path (Split-Path $Source -Parent) -Force | Out-Nul
 git clone https://github.com/axns8888/dsh-multica-runtime.git $Source
 if ($LASTEXITCODE -ne 0) { throw '克隆失败；检查该机私有仓库读取权限，不要继续安装' }
 Set-Location -LiteralPath $Source
-$Revision = '7e90bdb574bf0da459892413f69454327da7f775'
+$Revision = 'v0.2.0'
 git switch --detach $Revision
-if ($LASTEXITCODE -ne 0) { throw '固定源码失败；保留目录，不强制切换' }
-if ((git rev-parse HEAD) -cne $Revision) { throw '源码SHA不符' }
+if ($LASTEXITCODE -ne 0) { throw '固定源码失败；确认正式标签已推送，不强制切换' }
+if ((git rev-parse HEAD) -cne (git rev-parse "$Revision^{commit}")) { throw '源码SHA不符' }
 git status --short
 ```
 
-这是当前已推送且通过 Windows/Ubuntu CI 的修复基线。需要本指南新增文档/报错改进时，
-可将本issue的 `T-7-source.patch` 保存到仓库 `.local/`（忽略目录）或仓库外，
-在此干净基线由用户审阅后执行 git apply --check <补丁路径>，再 git apply <补丁路径>，
-检查 diff 后本地提交（保留用户身份），或取得审阅后已推送的准确新提交再选用。
-不要把尚未推送的本地 SHA 当作新机可 fetch 的远端引用。
-本issue的审查tgz包含新增文档，需使用已应用本轮补丁的配套安装器白名单；不要拿旧安装器安装新审查包。
+确认正式标签存在并核对其提交及发布记录；若标签尚不可用则停止，勿回退到旧源码。
 
 ## 5. 只构建和审计：不改真实 profile
 
@@ -201,11 +196,11 @@ Get-Content -LiteralPath (Join-Path $Output 'build-info.json') -Raw
 $result = & ./scripts/install-runtime.ps1 -Package $pkg -Checksums $sums -DshHome $DshHome -DshCommand $DshCommand
 $result | Format-List
 $BackupId = $result.backupId
-./scripts/verify-runtime.ps1 -DshHome $DshHome -DshCommand $DshCommand -ExpectedVersion '0.2.0-axns.1' -ReportPath (Join-Path $Output 'device-verification.json')
+./scripts/verify-runtime.ps1 -DshHome $DshHome -DshCommand $DshCommand -ExpectedVersion '0.2.0' -ReportPath (Join-Path $Output 'device-verification.json')
 ```
 
 预期 `status=installed`，返回 backupId、SHA256；verification 的 probe、modelCatalog、
-stdioHandshake 均为 passed。probe 必须为 JSONL v1、runtime=dsh、插件 `0.2.0-axns.1`；
+stdioHandshake 均为 passed。probe 必须为 JSONL v1、runtime=dsh、插件 `0.2.0`；
 modelCount>0；stdio ready/能力握手及有界 EOF 退出通过。
 `inference/daemonActivation/cancellation/resume/toolResult=not_verified` 是准确边界。
 
@@ -294,7 +289,5 @@ Agent 名称/ID、当前 runtime ID/设备、目标 runtime ID/设备/daemon_id/
 链接 main 可能变化，应优先用安装版本随附文档。Multica命令核对当前实际0.13.0 `--help`；
 不假定存在 `runtime register`、`dsh login` 或 `dsh config set`。
 
-下一步若需免源码分发：先审阅本地变更，将 package.json 与 src/index.ts 同步升为
-`0.2.0-axns.2`，固定提交并重跑构建/审计/必要测试，取得新的 build-info/hash；
-经用户明确授权后普通推送 main，再建新 tag `v0.2.0-axns.2`，检查草稿资产后正式发布。
-旧 tag 不移动。本任务不修改版本、不 push/tag/PR、不触发 workflow 或发布 Release。
+正式版采用 `0.2.0` 和标签 `v0.2.0`。先固定提交并重跑构建、审计和必要测试，
+核验 build-info、hash 与发行资产，再用于新机部署。旧 tag 保持原位。

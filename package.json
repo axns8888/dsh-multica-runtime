@@ -1,6 +1,6 @@
 {
   "name": "@multica-ai/dsh-runtime",
-  "version": "0.2.0-axns.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Private AXNS maintenance build of the native Multica DSH runtime",
   "repository": {
